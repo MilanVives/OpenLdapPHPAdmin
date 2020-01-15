@@ -1,0 +1,84 @@
+version: '2'
+services: 
+  db:
+    image: mysql:latest
+    volumes:
+      - "./.data/db:/var/lib/mysql"
+      - "./conf/mysql:/etc/mysql/conf.d"
+    restart: always    
+    environment:
+      MYSQL_ROOT_PASSWORD: ldap
+      MYSQL_DATABASE: ldap
+      MYSQL_USER: vives
+      MYSQL_PASSWORD: ldap
+
+  ldap-client:
+    image: osixia/phpldapadmin:latest
+    hostname: vivesdata
+    domainname: ldap.vives.be
+    depends_on:
+      - db
+      - ldap
+    links:
+      - db
+      - ldap:ldap.vives.be
+    ports: 
+      - 6443:443  
+    restart: always
+    environment:
+      LDAP_DB_HOST: db:3306
+      LDAP_DB_PASSWORD: ldap
+      LDAP_DB_USER: vives
+      LDAP_DB_NAME: ldap
+      PHPLDAPADMIN_LDAP_HOSTS: ldap.vives.be   
+      PHPLDAPADMIN_LDAP_CLIENT_TLS: "false"
+
+  ldap:
+    depends_on:
+      - db
+    image: osixia/openldap:latest    
+    hostname: vivesdata
+    domainname: ldap.vives.be
+    ports:
+      - "389:389"
+    volumes:
+      - "./.data/var/lib/ldap:/var/lib/ldap"
+      - "./.data/etc/ldap/slapd.d:/etc/ldap/slapd.d"
+    links:
+      - db
+    restart: always    
+    environment: 
+      LDAP_DB_HOST: db:3306
+      LDAP_DB_PASSWORD: ldap
+      LDAP_DB_USER: vives
+      LDAP_DB_NAME: ldap 
+      LDAP_ORGANISATION: Vives
+      LDAP_DOMAIN: ldap.vives.be
+      LDAP_ADMIN_PASSWORD: ldap
+      LDAP_TLS: "false"
+
+  ldapbackup:
+    depends_on:
+      - db
+      - ldap  
+    image: osixia/openldap-backup:latest  
+    hostname: vivesdata
+    domainname: ldap.vives.be
+    volumes:
+      - "./.data/openldap/backup:/data/backup"
+      - "./.data/etc/ldap/slapd.d:/etc/ldap/slapd.d"
+    links:
+      - db
+      - ldap:ldap.vives.be
+    restart: always    
+    environment: 
+      LDAP_DB_HOST: db:3306
+      LDAP_DB_PASSWORD: ldap
+      LDAP_DB_USER: vives
+      LDAP_DB_NAME: ldap 
+      LDAP_ORGANISATION: Vives
+      LDAP_DOMAIN: ldap.vives.be
+      LDAP_ADMIN_PASSWORD: ldap
+      LDAP_BACKUP_CONFIG_CRON_EXP: "0 5 * * *"
+      LDAP_BACKUP_DATA_CRON_EXP: "0 5 * * *"
+
